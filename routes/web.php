@@ -21,6 +21,8 @@ Route::get('/', function () {
     );
 });
 
-Route::get('/book', function () {
-   return view('book');
+Route::get('/books/{id}', function ($id) {
+    $book = DB::table('books')->find($id);
+    dd($book);
+    // return view('book');
 });
