@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Author;
 use App\Models\Book;
 use App\Models\Image;
 use App\Models\User;
@@ -41,7 +42,11 @@ class BooksTableSeeder extends Seeder
         $img2->url = "https://picsum.photos/400";
 
         $book->images()->saveMany([$img1, $img2]);
-        // $book->save();
+
+        $authors = Author::all()->pluck('id');
+        $book->authors()->sync($authors);
+
+        $book->save();
 
     }
 }
