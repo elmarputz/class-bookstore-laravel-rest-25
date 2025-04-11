@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Author;
 use App\Models\Book;
+use App\Models\Image;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BookController extends Controller
 {
@@ -37,4 +40,98 @@ class BookController extends Controller
         return response()->json($books, 200);
 
     }
+
+
+    public function save (Request $request) : JsonResponse {
+
+        $request = $this->parseRequest($request);
+
+        DB::beginTransaction();
+
+        try {
+            $book = Book::create($request->all());
+
+            if (isset($request["images"]) && is_array($request["images"])) {
+                foreach ($request["images"] as $img) {
+                    $image = new Image();
+                    $image->url = $img['url'];
+                    $image->title = $img['title'];
+                    $book->images()->save($image);
+                }
+            }
+
+            if (isset($request["authors"]) && is_array($request["authors"])) {
+                foreach ($request["authors"] as $auth) {
+                    $author = Author::firstOrNew(['id' => $auth['id'], 'firstName' => $auth['firstName'], 'lastName' => $auth['lastName']]);
+                    $book->authors()->save($author);
+                }
+            }
+
+
+            DB::commit();
+            return response()->json($book, 200);
+        }
+        catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(["saving book failed: " . $e->getMessage()], 500);
+        }
+    }
+
+
+    public function update (Request $request, string $isbn) : JsonResponse
+    {
+
+        DB::beginTransaction();
+        try {
+
+            $book = Book::with('authors', 'images', 'user')->where('isbn', $isbn)->first();
+
+            if ($book != null) {
+                $request = $this->parseRequest($request);
+                $book->update($request->all());
+
+                $book->images()->delete();
+
+                if (isset($request["images"]) && is_array($request["images"])) {
+                    foreach ($request["images"] as $img) {
+                        $image = new Image();
+                        $image->url = $img['url'];
+                        $image->title = $img['title'];
+                        $book->images()->save($image);
+                    }
+                }
+
+                $ids = [];
+                if (isset($request["authors"]) && is_array($request["authors"])) {
+
+                    foreach ($request["authors"] as $auth) {
+                        array_push($ids, $auth['id']);
+                    }
+                }
+                $book->authors()->sync($ids);
+                $book->save();
+
+                DB::commit();
+
+                $book1 = Book::with('authors', 'images', 'user')->where('isbn', $isbn)->first();
+                return response()->json($book1, 200);
+
+            } else {
+                return response()->json("book with isbn " . $isbn . " not found!", 404);
+            }
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(["saving book failed: " . $e->getMessage()], 500);
+        }
+
+    }
+
+
+
+    private function parseRequest(Request $request) : Request {
+        $date = new \DateTime($request->published);
+        $request['published'] = $date->format('Y-m-d H:i:s');
+        return $request;
+    }
+
 }
