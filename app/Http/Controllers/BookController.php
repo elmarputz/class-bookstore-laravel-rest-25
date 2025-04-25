@@ -8,6 +8,7 @@ use App\Models\Image;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class BookController extends Controller
 {
@@ -130,6 +131,11 @@ class BookController extends Controller
     public function delete (string $isbn) : JsonResponse {
         $book = Book::where('isbn', $isbn)->first();
         if ($book != null) {
+
+            if (!Gate::allows('own-book', $book)) {
+                return response()->json("user is not allowed to delete this book", 403);
+            }
+
             $book->delete();
             return response()->json('book (' . $isbn . ') deleted', 200);
         }
