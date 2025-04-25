@@ -127,6 +127,17 @@ class BookController extends Controller
     }
 
 
+    public function delete (string $isbn) : JsonResponse {
+        $book = Book::where('isbn', $isbn)->first();
+        if ($book != null) {
+            $book->delete();
+            return response()->json('book (' . $isbn . ') deleted', 200);
+        }
+        else {
+            return response()->json('book (' . $isbn . ' not found!', 404);
+        }
+    }
+
 
     private function parseRequest(Request $request) : Request {
         $date = new \DateTime($request->published);
